@@ -32,6 +32,9 @@ class pathPlanning
 		// update states in FWM, determine next state and generate target_lane
 		void updateFSM();
 		
+		// printing debug message
+		void print_closet_all();
+
 		// generate a trajectory base on targeting lane determined by FSM
 		void generateTrajectory(vector<double> &previous_path_x, vector<double> &previous_path_y);
 
@@ -62,7 +65,7 @@ class pathPlanning
 		int laneWidth_ = 4.0;	// in meters
 		double laneSpeedLimit_ = 50.0; // in miles per hour
 		double laneVisibleDist_ = 50.0;  // in meters
-		double min_safe_dist_ = 50.0; // in meters (22.35mps ~ 50MPH), so 50 meters are more than double
+		double min_safe_dist_ = 100.0; // in meters (22.35mps ~ 50MPH), so 50 meters are more than double
 		
 		// current car info
 		double car_x_;

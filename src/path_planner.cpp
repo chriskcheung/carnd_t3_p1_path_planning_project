@@ -89,11 +89,13 @@ void pathPlanning::processSensorData(double car_x, double car_y, double car_s, d
 		
 		// assign result to ref_* for calculating new path trajectory
 		ref_x_ = prev_x1;
-		ref_y_ = prev_x1;
+		ref_y_ = prev_y1;
 		ref_s_ = prev_sd[0];
 		ref_d_ = prev_sd[1];
 		ref_yaw_ = prev_yaw;
 		ref_v_ = prev_v_mps;
+		cout << "prev_* ------>" << endl;
+		cout << "x1|y1| x2|y2| yaw|s|d|v_mps = " << ref_x_ <<"|"<< ref_y_ <<"|| "<< prev_x2 <<"|"<< prev_y2 <<"|| "<< ref_yaw_ <<"|| "<< ref_s_ <<"|"<< ref_d_ <<"|| "<< ref_v_ << endl;
 	}	
 	ref_lane_ = getLane(ref_d_);
 	
@@ -261,6 +263,16 @@ bool pathPlanning::isChangeLaneSafe(int laneID, int dir){
 	}
 }
 
+
+void pathPlanning::print_closet_all(){
+	for(int i=0; i<laneSize_; i++)
+		std::cout << "closet_front_s_diff_[" << i << "]=" << closet_front_s_diff_[i] << " id=" <<  closet_front_id_[i] << " at " <<  closet_front_v_[i] << "mps" << endl;
+	for(int i=0; i<laneSize_; i++)
+		std::cout << "closet_back_s_diff_[" << i << "]=" << closet_back_s_diff_[i] << " id=" <<  closet_back_id_[i] << " at " <<  closet_back_v_[i] << "mps" << endl;
+	for(int i=0; i<laneSize_; i++)
+		std::cout << "cost_[" << i << "]=" << cost_[i] << endl;
+}
+
 // update states in FWM and determine next state
 void pathPlanning::updateFSM(){
 	switch(f_) {
@@ -268,10 +280,12 @@ void pathPlanning::updateFSM(){
 		// ==================
 		case fsmStateType::keepLane:
 		// ==================
+			print_closet_all();
 			// keepLane state checks lowest cost functions
 			if(closet_front_s_diff_[ref_lane_] < min_safe_dist_){
 				//reduce speed first
 				ref_v_ -= 0.5;
+				cout << "slowing down by 0.5" << endl;
 				
 				// skip changing lane if it just finished changing lane within a 10th of sec
 				if(timer_ > 0){
@@ -343,6 +357,8 @@ void pathPlanning::updateFSM(){
 // generate a trajectory base on targeting lane determined by FSM
 void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<double> &previous_path_y){
 	vector<double> ptsx, ptsy;
+	next_x.clear();
+	next_y.clear();
 
 	// if no previous path exist, use current car points and its previous determine by car_yaw_
 	if (prv_size_ < 2){
@@ -365,6 +381,8 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 		// use two points that make the path tangent to the previous path's end point
 		ptsx.push_back(prv_x2);
 		ptsy.push_back(prv_y2);
+		cout << "prev_* ------>" << endl;
+		cout << "x1|y1| x2|y2| yaw|s|d|v_mps = " << ref_x_ <<"|"<< ref_y_ <<"|| "<< prv_x2 <<"|"<< prv_y2 <<"|| "<< ref_yaw_ <<"|| "<< ref_s_ <<"|"<< ref_d_ <<"|| "<< ref_v_ << endl;
 	}
 
 	// push the ref_x_ and ref_y_ as 2nd point, see processSensorData() for their origin
@@ -387,6 +405,12 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 	
 	std::cout << "2nd - ptsx/y.size=" << ptsx.size() << endl;
 
+	std::cout << "before conversion" << endl;
+	for(int i=0; i<ptsx.size(); i++){
+		std::cout << "ptsx|ptsy["<<i<<"]=" << ptsx[i] << "|" << ptsy[i] << endl;
+	}
+
+	std::cout << "after conversion" << endl;
 	for(int i=0; i<ptsx.size(); i++){
 		//shift car reference angle to 0 degrees to align with local coordinates or in car's prespective
 		double shift_x = ptsx[i]-ref_x_;
@@ -426,7 +450,7 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 	
 	// fill up the rest of out path planner after filling it with previous points, here we will always output 50 points
 	double N = (target_dist/(0.02*maxTravelSpeed_/2.24));  // base on meter/sec
-	std::cout << "N|target_dist|ref_v_=" << N << "|" << target_dist << "|" << maxTravelSpeed_ << endl;
+	std::cout << "N|target_dist|maxTravelSpeed=" << N << "|" << target_dist << "|" << maxTravelSpeed_ << endl;
 
 	for(int i=1; i<=nextPathSize_-prv_size_; i++){
 		double x_point = x_add_on+(target_x/N);
