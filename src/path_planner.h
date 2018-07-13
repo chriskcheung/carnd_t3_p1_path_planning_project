@@ -48,10 +48,10 @@ class pathPlanning
 		double dt_ = 0.02;
 		
 		// timer for stablizing to keepLane state after a changeLane state
-		double timer_ = 0;
+		double timer_ = 0.5;
 		
 		// max desire speed
-		double maxTravelSpeed_ = 49.5;
+		double maxTravelSpeed_ = 49.2;
 		
 		// map waypoints data
 		vector<double> map_x_;
@@ -65,7 +65,8 @@ class pathPlanning
 		int laneWidth_ = 4.0;	// in meters
 		double laneSpeedLimit_ = 50.0; // in miles per hour
 		double laneVisibleDist_ = 50.0;  // in meters
-		double min_safe_dist_ = 100.0; // in meters (22.35mps ~ 50MPH), so 50 meters are more than double
+		double min_safe_dist_ = 18.0; // in meters (22.35mps ~ 50MPH), so 50 meters are more than double
+		double min_safe_dist_back_ = 5.0; // in meters (22.35mps ~ 50MPH), so 50 meters are more than double
 		
 		// current car info
 		double car_x_;

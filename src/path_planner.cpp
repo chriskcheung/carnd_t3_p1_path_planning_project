@@ -25,8 +25,8 @@ void pathPlanning::initPathPlanning(vector<double> &map_x, vector<double> &map_y
 	// initialize all cost and closet distance variables before processing
 	for (int i=0; i<laneSize_; i++){
 		cost_[i] = 0;
-		closet_front_s_diff_[i] = min_safe_dist_;
-		closet_back_s_diff_[i]  = min_safe_dist_;
+		closet_front_s_diff_[i] = 999.0;
+		closet_back_s_diff_[i]  = 999.0;
 		closet_front_id_[i] = 0;
 		closet_back_id_[i]  = 0;
 		closet_front_v_[i]  = 0.0;
@@ -95,7 +95,7 @@ void pathPlanning::processSensorData(double car_x, double car_y, double car_s, d
 		ref_yaw_ = prev_yaw;
 		ref_v_ = prev_v_mps;
 		cout << "prev_* ------>" << endl;
-		cout << "x1|y1| x2|y2| yaw|s|d|v_mps = " << ref_x_ <<"|"<< ref_y_ <<"|| "<< prev_x2 <<"|"<< prev_y2 <<"|| "<< ref_yaw_ <<"|| "<< ref_s_ <<"|"<< ref_d_ <<"|| "<< ref_v_ << endl;
+		cout << "x1|y1| x2|y2| yaw|s|d|v_mps|v MPH = " << ref_x_ <<"|"<< ref_y_ <<"|| "<< prev_x2 <<"|"<< prev_y2 <<"|| "<< ref_yaw_ <<"|| "<< ref_s_ <<"|"<< ref_d_ <<"|| "<< ref_v_ <<"|| "<< ref_v_/MILE_PER_HOUR_2_METER_PER_SEC<< endl;
 	}	
 	ref_lane_ = getLane(ref_d_);
 	
@@ -138,7 +138,7 @@ void pathPlanning::processSensorData(double car_x, double car_y, double car_s, d
 		}
 		
 		// check if vehicle is in the front
-		if(ref_s_ > vehicle_s_at_prev_path_end){
+		if(ref_s_ < vehicle_s_at_prev_path_end){
 			// check if vehicle is closer than previous recorded in its lane
 			if(s_diff < closet_front_s_diff_[vehicle_lane]){
 				closet_front_s_diff_[vehicle_lane] = s_diff;
@@ -149,8 +149,10 @@ void pathPlanning::processSensorData(double car_x, double car_y, double car_s, d
 		// vehicle is from the back 
 		else {
 			// check if vehicle is closer than previous recorded in its lane
-			if(s_diff < closet_back_s_diff_[vehicle_lane]){
-				closet_back_s_diff_[vehicle_lane] = s_diff;
+			//if(s_diff < closet_back_s_diff_[vehicle_lane]){
+			if(car_s_-vehicle_s < closet_back_s_diff_[vehicle_lane]){
+				//closet_back_s_diff_[vehicle_lane] = s_diff;
+				closet_back_s_diff_[vehicle_lane] = fabs(car_s_-vehicle_s);
 				closet_back_id_[vehicle_lane] = vehicle_id;  // just in case if we need it for look up
 				closet_back_v_[vehicle_lane] = vehicle_v;
 			}
@@ -168,28 +170,35 @@ void pathPlanning::processSensorData(double car_x, double car_y, double car_s, d
 				// not supporting to jump 2 lanes, so max cost for right most lane
 				cost_[2] += 100;
 				// cost of turn right base on any room on the right front and back, and the vehicle behind on the right was traveling faster than me
-				cost_[1] += 100-closet_front_s_diff_[1] + (ref_v_ - closet_front_v_[1]) + 100-closet_back_s_diff_[1] - (ref_v_ - closet_back_v_[1]);
+				cost_[1] += closet_front_s_diff_[1] > laneVisibleDist_ ? 0 : 
+				           (ref_s_ - closet_front_v_[1])==0 ? 100 : closet_front_s_diff_[1]/fabs(ref_v_ - closet_front_v_[1]);
 				// cost of staying in same lane base on the distance of vehicle in the front
-				cost_[0] += 100-closet_front_s_diff_[0] + (ref_v_ - closet_front_v_[0]);
+				cost_[0] += closet_front_s_diff_[0] > laneVisibleDist_ ? 0 : 
+				           (ref_v_ - closet_front_v_[0])==0 ? 100 : closet_front_s_diff_[0]/fabs(ref_v_ - closet_front_v_[0]);
 				break;
 
 		// middle lane
 		case 1: 
 				// cost of turn right base on any room on the right front and back, and the vehicle behind was traveling faster than me
-				cost_[2] += 100-closet_front_s_diff_[2] + (ref_v_ - closet_front_v_[2]) + 100-closet_back_s_diff_[2] - (ref_v_ - closet_back_v_[2]);
+				// left turn is preferrable, thus add 4 to left turn
+				cost_[2] += closet_front_s_diff_[2] > laneVisibleDist_ ? 0+2 : 
+				           (ref_v_ - closet_front_v_[2])==0 ? 100 : closet_front_s_diff_[2]/fabs(ref_v_ - closet_front_v_[2])+2;
 				// cost of staying in same lane base on the distance of vehicle in the front
-				cost_[1] += 100-closet_front_s_diff_[1] + (ref_v_ - closet_front_v_[1]); 
+				cost_[1] += closet_front_s_diff_[1] > laneVisibleDist_ ? 0 : 
+				           (ref_v_ - closet_front_v_[1])==0 ? 100 : closet_front_s_diff_[1]/fabs(ref_v_ - closet_front_v_[1]);
 				// cost of turn left base on any room on the left front and back, and the vehicle behind was traveling faster than me, 
-				// right turn is preferrable, thus add 4 to left turn
-				cost_[0] += 100-closet_front_s_diff_[0] + (ref_v_ - closet_front_v_[0]) + 100-closet_back_s_diff_[0] - (ref_v_ - closet_back_v_[0]) + 4;
+				cost_[0] += closet_front_s_diff_[0] > laneVisibleDist_ ? 0 : 
+				           (ref_v_ - closet_front_v_[0])==0 ? 100 : closet_front_s_diff_[0]/fabs(ref_v_ - closet_front_v_[0]);
 				break;
 
 		// right most lane
 		case 2: 
 				// cost of staying in same lane base on the distance of vehicle in the front
-				cost_[2] += 100-closet_front_s_diff_[2] + (ref_v_ - closet_front_v_[2]);
+				cost_[2] += closet_front_s_diff_[2] > laneVisibleDist_ ? 0 : 
+				           (ref_v_ - closet_front_v_[2])==0 ? 100 : closet_front_s_diff_[2]/fabs(ref_v_ - closet_front_v_[2]);
 				// cost of turn left base on any room on the left front and back, and the vehicle behind on the left was traveling faster than me
-				cost_[1] += 100-closet_front_s_diff_[1] + (ref_v_ - closet_front_v_[1]) + 100-closet_back_s_diff_[1] - (ref_v_ - closet_back_v_[1]);
+				cost_[1] += closet_front_s_diff_[1] > laneVisibleDist_ ? 0 : 
+				           (ref_v_ - closet_front_v_[1])==0 ? 100 : closet_front_s_diff_[1]/fabs(ref_v_ - closet_front_v_[1]);
 				// not supporting to jump 2 lanes, so max cost for right most lane
 				cost_[0] += 100;
 				break;
@@ -207,7 +216,7 @@ bool pathPlanning::isChangeLaneSafe(int laneID, int dir){
 
 		// turn right
 		if(dir == 1){
-			if (closet_front_s_diff_[1]+closet_back_s_diff_[1] > 2*min_safe_dist_)
+			if (closet_front_s_diff_[1] > min_safe_dist_ && closet_back_s_diff_[1] > min_safe_dist_back_)
 				return true;
 			else
 				return false;
@@ -223,7 +232,7 @@ bool pathPlanning::isChangeLaneSafe(int laneID, int dir){
 
 		// turn left
 		if(dir == -1){
-			if (closet_front_s_diff_[0]+closet_back_s_diff_[0] > 2*min_safe_dist_)
+			if (closet_front_s_diff_[0] > min_safe_dist_ && closet_back_s_diff_[0] > min_safe_dist_back_)
 				return true;
 			else
 				return false;
@@ -231,7 +240,7 @@ bool pathPlanning::isChangeLaneSafe(int laneID, int dir){
 
 		// turn right
 		if(dir == 1){
-			if (closet_front_s_diff_[2]+closet_back_s_diff_[2] > 2*min_safe_dist_)
+			if (closet_front_s_diff_[2] > min_safe_dist_ && closet_back_s_diff_[2] > min_safe_dist_back_)
 				return true;
 			else
 				return false;
@@ -247,7 +256,7 @@ bool pathPlanning::isChangeLaneSafe(int laneID, int dir){
 
 		// turn left
 		if(dir == -1){
-			if (closet_front_s_diff_[1]+closet_back_s_diff_[1] > 2*min_safe_dist_)
+			if (closet_front_s_diff_[1] > min_safe_dist_ && closet_back_s_diff_[1] > min_safe_dist_back_)
 				return true;
 			else
 				return false;
@@ -265,6 +274,12 @@ bool pathPlanning::isChangeLaneSafe(int laneID, int dir){
 
 
 void pathPlanning::print_closet_all(){
+	std::cout << "min_safe_dist_=" << min_safe_dist_ << endl;
+	std::cout << "ref_lane_=" << ref_lane_ << endl;
+	std::cout << "isChangeLaneSafe(0, 1)=" << isChangeLaneSafe(0, 1) << endl;
+	std::cout << "isChangeLaneSafe(2,-1)=" << isChangeLaneSafe(2,-1) << endl;
+	std::cout << "isChangeLaneSafe(1,-1)=" << isChangeLaneSafe(1,-1) << endl;
+	std::cout << "isChangeLaneSafe(1, 1)=" << isChangeLaneSafe(1, 1) << endl;
 	for(int i=0; i<laneSize_; i++)
 		std::cout << "closet_front_s_diff_[" << i << "]=" << closet_front_s_diff_[i] << " id=" <<  closet_front_id_[i] << " at " <<  closet_front_v_[i] << "mps" << endl;
 	for(int i=0; i<laneSize_; i++)
@@ -283,50 +298,65 @@ void pathPlanning::updateFSM(){
 			print_closet_all();
 			// keepLane state checks lowest cost functions
 			if(closet_front_s_diff_[ref_lane_] < min_safe_dist_){
-				//reduce speed first
-				ref_v_ -= 0.5;
-				cout << "slowing down by 0.5" << endl;
+				
+				//reduce speed first to match the speed of car in front
+				ref_v_ = max(ref_v_-0.5, closet_front_v_[ref_lane_]-0.5);
 				
 				// skip changing lane if it just finished changing lane within a 10th of sec
-				if(timer_ > 0){
-					timer_ -= dt_*(nextPathSize_-prv_size_);
-				}
-
-				//cost of changing lane
-				else if(ref_lane_==0 && isChangeLaneSafe(0, 1) && (cost_[0] > cost_[1])){
-					f_ = fsmStateType::laneChangeLeft;
-					target_lane_ = 1*laneWidth_+2;
-					break;
-				}
-				else if(ref_lane_==2 && isChangeLaneSafe(2, -1) && (cost_[2] > cost_[1])){
-					f_ = fsmStateType::laneChangeRight;
-					target_lane_ = 1*laneWidth_+2;
-					break;
-				}
-				else if(ref_lane_==1){
-					// if both turn left and right are feasible, pick the one with less cost
-					if(isChangeLaneSafe(1, -1) && isChangeLaneSafe(1, -1)){
-						// change to left if cost of left lane is the lowest
-						if(cost_[2] < cost_[0] && cost_[2] < cost_[1]){
-							// change lane right
-							f_ = fsmStateType::laneChangeRight;
-							target_lane_ = 2*laneWidth_+2;
-							break;
+				if(timer_ == 0){
+					//cost of changing lane
+					if(ref_lane_==0 && isChangeLaneSafe(0, 1) && (cost_[0] > cost_[1])){
+						f_ = fsmStateType::laneChangeLeft;
+						target_lane_ = 1;
+						cout << "proceed to change lane from 0 to LEFT to " << target_lane_<< endl;
+						break;
+					}
+					else if(ref_lane_==2 && isChangeLaneSafe(2, -1) && (cost_[2] > cost_[1])){
+						f_ = fsmStateType::laneChangeRight;
+						target_lane_ = 1;
+						cout << "proceed to change lane from 2 to RIGHT to " << target_lane_<< endl;
+						break;
+					}
+					else if(ref_lane_==1){
+						// if both turn left and right are feasible, pick the one with less cost
+						if(isChangeLaneSafe(1, -1) && isChangeLaneSafe(1, 1)){
+							// change to left if cost of left lane is the lowest
+							if(cost_[2] <= cost_[0] && cost_[2] < cost_[1]){
+								// change lane right
+								f_ = fsmStateType::laneChangeRight;
+								target_lane_ = 2;
+								cout << "proceed to change lane from 1 to LEFT to " << target_lane_<< endl;
+								break;
+							}
+							// change to right if cost of right lane is the lowest
+							else if(cost_[0] <= cost_[2] && cost_[0] < cost_[1]){
+								// change lane left
+								f_ = fsmStateType::laneChangeLeft;
+								target_lane_ = 0;
+								cout << "proceed to change lane from 1 to RIGHT to " << target_lane_<< endl;
+								break;
+							}
+							// else stay in its lane if cost of its lane is the lowest
 						}
-						// change to right if cost of right lane is the lowest
-						else if(cost_[0] < cost_[2] && cost_[0] < cost_[1]){
-							// change lane left
-							f_ = fsmStateType::laneChangeLeft;
-							target_lane_ = 1*laneWidth_+2;
-							break;
-						}
-						// else stay in its lane if cost of its lane is the lowest
 					}
 				}
 			}
+			else if(ref_v_ < maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC){
+				cout << "accelerate 0.8 mps to catch up speed" << endl;
+				ref_v_ = min(ref_v_+0.8, maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC);
+			}else if (ref_v_ > maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC){
+				cout << "reuced sped by 0.5 mps to stay under sped lmit" << endl;
+				ref_v_ = max(ref_v_-0.8, maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC);
+			}
+
 			if(timer_ < 0){
 				timer_ = 0;
+				cout << "reset timer" << endl;
+			} else if(timer_ > 0){
+				cout << "decrement timer" << endl;
+				timer_ -= dt_*(nextPathSize_-prv_size_);
 			}
+
 			target_lane_ = ref_lane_;
 		break;
 		
@@ -334,9 +364,16 @@ void pathPlanning::updateFSM(){
 		case fsmStateType::laneChangeLeft:
 		// ==================
 			// complete lane change
-			if(car_d_ == target_lane_){
+			if(car_lane_ == target_lane_){
 				f_ = fsmStateType::keepLane;
-				timer_ = 10;
+				timer_ = 2;
+			}
+			if(ref_v_ < maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC){
+				cout << "accelerate 0.8 mps to catch up speed" << endl;
+				ref_v_ = min(ref_v_+0.8, maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC);
+			}else if (ref_v_ > maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC){
+				cout << "reuced sped by 0.5 mps to stay under sped lmit" << endl;
+				ref_v_ = max(ref_v_-0.8, maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC);
 			}
 		break;
 		
@@ -344,9 +381,16 @@ void pathPlanning::updateFSM(){
 		case fsmStateType::laneChangeRight:
 		// ==================
 			// complete lane change
-			if(car_d_ == target_lane_){
+			if(car_lane_ == target_lane_){
 				f_ = fsmStateType::keepLane;
-				timer_ = 10;
+				timer_ = 2;
+			}
+			if(ref_v_ < maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC){
+				cout << "accelerate 0.8 mps to catch up speed" << endl;
+				ref_v_ = min(ref_v_+0.8, maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC);
+			}else if (ref_v_ > maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC){
+				cout << "reuced sped by 0.5 mps to stay under sped lmit" << endl;
+				ref_v_ = max(ref_v_-0.8, maxTravelSpeed_*MILE_PER_HOUR_2_METER_PER_SEC);
 			}
 		break;
 	}
@@ -382,7 +426,7 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 		ptsx.push_back(prv_x2);
 		ptsy.push_back(prv_y2);
 		cout << "prev_* ------>" << endl;
-		cout << "x1|y1| x2|y2| yaw|s|d|v_mps = " << ref_x_ <<"|"<< ref_y_ <<"|| "<< prv_x2 <<"|"<< prv_y2 <<"|| "<< ref_yaw_ <<"|| "<< ref_s_ <<"|"<< ref_d_ <<"|| "<< ref_v_ << endl;
+		cout << "x1|y1| x2|y2| yaw|s|d|v mps|v MPH = " << ref_x_ <<"|"<< ref_y_ <<"|| "<< prv_x2 <<"|"<< prv_y2 <<"|| "<< ref_yaw_ <<"|| "<< ref_s_ <<"|"<< ref_d_ <<"|| "<< ref_v_<<"|| "<< ref_v_/MILE_PER_HOUR_2_METER_PER_SEC << endl;
 	}
 
 	// push the ref_x_ and ref_y_ as 2nd point, see processSensorData() for their origin
@@ -391,9 +435,9 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 	std::cout << "1st - ptsx/y.size=" << ptsx.size() << endl;
 
 	// in Frenet add evenly 30m spaced points ahead of the starting reference so the points are not only cover the even distance points
-	vector<double> next_wp0 = getXY(car_s_+30, (2+4*target_lane_), map_s_, map_x_, map_y_);
-	vector<double> next_wp1 = getXY(car_s_+60, (2+4*target_lane_), map_s_, map_x_, map_y_);
-	vector<double> next_wp2 = getXY(car_s_+90, (2+4*target_lane_), map_s_, map_x_, map_y_);
+	vector<double> next_wp0 = getXY(car_s_+50,  (2+laneWidth_*target_lane_), map_s_, map_x_, map_y_);
+	vector<double> next_wp1 = getXY(car_s_+100, (2+laneWidth_*target_lane_), map_s_, map_x_, map_y_);
+	vector<double> next_wp2 = getXY(car_s_+150, (2+laneWidth_*target_lane_), map_s_, map_x_, map_y_);
 	
 	ptsx.push_back(next_wp0[0]);
 	ptsx.push_back(next_wp1[0]);
@@ -418,7 +462,7 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 		
 		ptsx[i] = (shift_x*cos(0-ref_yaw_)) - (shift_y*sin(0-ref_yaw_));
 		ptsy[i] = (shift_x*sin(0-ref_yaw_)) + (shift_y*cos(0-ref_yaw_));
-		std::cout << "ptsx|ptsy["<<i<<"]=" << ptsx[i] << "|" << ptsy[i] << endl;
+		//std::cout << "ptsx|ptsy["<<i<<"]=" << ptsx[i] << "|" << ptsy[i] << endl;
 	}
 	
 	// create a spline for fitting
@@ -438,8 +482,8 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 	for(int i=0; i<prv_size_; i++) {
 		next_x.push_back(previous_path_x[i]);
 		next_y.push_back(previous_path_y[i]);
-		std::cout << "prv - next_x["<<i<<"]=" << next_x[i] << endl;
-		std::cout << "prv - next_y["<<i<<"]=" << next_y[i] << endl;
+		//std::cout << "prv - next_x["<<i<<"]=" << next_x[i] << endl;
+		//std::cout << "prv - next_y["<<i<<"]=" << next_y[i] << endl;
 	}
 	
 	// calculate how to break up spline fitting points so that we travel at our desired reference velocity
@@ -449,14 +493,15 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 	double x_add_on = 0;
 	
 	// fill up the rest of out path planner after filling it with previous points, here we will always output 50 points
-	double N = (target_dist/(0.02*maxTravelSpeed_/2.24));  // base on meter/sec
-	std::cout << "N|target_dist|maxTravelSpeed=" << N << "|" << target_dist << "|" << maxTravelSpeed_ << endl;
+	//double N = (target_dist/(0.02*ref_v_/2.24));  // ref_v base on MPH
+	double N = (target_dist/(0.02*ref_v_));  // ref_v base on meter/sec
+	std::cout << "N|target_dist|ref_v_=" << N << "|" << target_dist << "|" << ref_v_ << endl;
 
 	for(int i=1; i<=nextPathSize_-prv_size_; i++){
 		double x_point = x_add_on+(target_x/N);
 		double y_point = s(x_point);
 		
-		std::cout << "[i]|x_point|y_point=" << i << "|" << x_point << "|" << y_point << endl;
+		//std::cout << "[i]|x_point|y_point=" << i << "|" << x_point << "|" << y_point << endl;
 		
 		x_add_on = x_point;
 		
@@ -472,8 +517,8 @@ void pathPlanning::generateTrajectory(vector<double> &previous_path_x, vector<do
 		
 		next_x.push_back(x_point);
 		next_y.push_back(y_point);
-		std::cout << "new - next_x["<<prv_size_-1+i<<"=" << next_x[prv_size_-1+i] << endl;
-		std::cout << "new - next_y["<<prv_size_-1+i<<"=" << next_y[prv_size_-1+i] << endl;
+		//std::cout << "new - next_x["<<prv_size_-1+i<<"=" << next_x[prv_size_-1+i] << endl;
+		//std::cout << "new - next_y["<<prv_size_-1+i<<"=" << next_y[prv_size_-1+i] << endl;
 	}
 }
 
