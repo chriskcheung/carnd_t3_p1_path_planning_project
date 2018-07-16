@@ -13,6 +13,8 @@ class pathPlanning
 		// destructor
 		virtual ~pathPlanning() {}
 		
+		bool debug = false;
+
 		// new data path array in global coordinates 
 		vector<double> next_x;
 		vector<double> next_y;
@@ -33,7 +35,7 @@ class pathPlanning
 		void updateFSM();
 		
 		// printing debug message
-		void print_closet_all();
+		void print_closest_all();
 
 		// generate a trajectory base on targeting lane determined by FSM
 		void generateTrajectory(vector<double> &previous_path_x, vector<double> &previous_path_y);
@@ -100,12 +102,12 @@ class pathPlanning
 		vector<double> cost_ = {0.0, 0.0, 0.0};
 
 		// closest distance to the vehicle ahead for each lane
-		vector<double> closet_front_s_diff_ = {999.0, 999.0, 999.0};
-		vector<double> closet_back_s_diff_  = {999.0, 999.0, 999.0};
-		vector<int>    closet_front_id_ = {0, 0, 0};
-		vector<int>    closet_back_id_  = {0, 0, 0};
-		vector<double> closet_front_v_ = {0.0, 0.0, 0.0};
-		vector<double> closet_back_v_  = {0.0, 0.0, 0.0};
+		vector<double> closest_front_s_diff_ = {999.0, 999.0, 999.0};
+		vector<double> closest_back_s_diff_  = {999.0, 999.0, 999.0};
+		vector<int>    closest_front_id_ = {0, 0, 0};
+		vector<int>    closest_back_id_  = {0, 0, 0};
+		vector<double> closest_front_v_ = {0.0, 0.0, 0.0};
+		vector<double> closest_back_v_  = {0.0, 0.0, 0.0};
 		
 		enum fsmStateType {
 			keepLane,

@@ -123,279 +123,29 @@ int main() {
 			int prv_path_size = previous_path_x.size();
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-			//example of going straight
-			/**
-			double dist_inc = 0.5;
-			for(int i = 0; i < 50; i++)
-			{
-				  next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-				  next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
-			}			
-			**/
-
-			//example of doing donut
-			/**
-			double pos_x;
-			double pos_y;
-			double angle;
-			int path_size = previous_path_x.size();
-			for(int i = 0; i < path_size; i++)
-			{
-			  next_x_vals.push_back(previous_path_x[i]);
-			  next_y_vals.push_back(previous_path_y[i]);
-			}
-			if(path_size == 0)
-			{
-			  pos_x = car_x;
-			  pos_y = car_y;
-			  angle = deg2rad(car_yaw);
-			}
-			else
-			{
-			  pos_x = previous_path_x[path_size-1];
-			  pos_y = previous_path_y[path_size-1];
-			  double pos_x2 = previous_path_x[path_size-2];
-			  double pos_y2 = previous_path_y[path_size-2];
-			  angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
-			}
-			double dist_inc = 0.5;
-			for(int i = 0; i < 50-path_size; i++)
-			{    
-			  next_x_vals.push_back(pos_x+(dist_inc)*cos(angle+(i+1)*(pi()/100)));
-			  next_y_vals.push_back(pos_y+(dist_inc)*sin(angle+(i+1)*(pi()/100)));
-			  pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
-			  pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
-			}			
-			**/
-
-			//example of stay in lane
-			/**
-			double dist_inc = 0.4;
-			for(int i = 0; i < trajectary_size; i++)
-			{
-				// Predict next s and d
-				double next_s = car_s+(i+1)*dist_inc;
-				double next_d = 2;  // within 2 <= 6 <= 10 for left|middle|right lane. potentially change lane by using cost function to determine
-				vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-				next_x_vals.push_back(xy[0]);
-				next_y_vals.push_back(xy[1]);
-				//std::cout << "new next_x_vals[" << i << "]=" << next_x_vals[i] << endl;
-				//std::cout << "new next_y_vals[" << i << "]=" << next_y_vals[i] << endl;
-			}
-			**/
-			
-			// experimental code (not working)
-			/**
-			double dist_inc = 0.4;
-			vector<double> ptsx, ptsy;  // for temporary holding the points
-			spline s;
-			double ref_x = car_x;
-			double ref_y = car_x;
-			double ref_yaw = deg2rad(car_yaw);
-			
-			if (previous_path_size == 0) {
-				std::cout << "[" << iter << "] =======================================" << endl;
-				std::cout << "previous_path_x.size=" << previous_path_x.size() << endl;
-				std::cout << "car_d=" << car_d << endl;
-				
-				for(int i = 0; i < trajectary_size; i++)
-				{
-					// Predict next s and d
-					double next_s = car_s+(i+1)*dist_inc;
-					double next_d = 2;  // potentially change lane by using cost function to determine
-					vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-					pts_x.push_back(xy[0]);
-					pts_y.push_back(xy[1]);
-					//std::cout << "new next_x_vals[" << i << "]=" << next_x_vals[i] << endl;
-					//std::cout << "new next_y_vals[" << i << "]=" << next_y_vals[i] << endl;
-				}
-			}
-			else {
-				std::cout << "[" << iter << "] =======================================" << endl;
-				std::cout << "previous_path_x.size=" << previous_path_x.size() << endl;
-				// copy the previous path x and y
-				for(int i = 0; i < previous_path_size; i++)
-				{
-					next_x_vals.push_back(previous_path_x[i]);
-					next_y_vals.push_back(previous_path_y[i]);
-					//std::cout << "prev next_x_vals[" << i << "]=" << next_x_vals[i] << endl;
-					//std::cout << "prev next_y_vals[" << i << "]=" << next_y_vals[i] << endl;
-				}
-				
-				// Predict next s and d
-				double previous_path_x0 = previous_path_x[previous_path_size-1];
-				double previous_path_y0 = previous_path_y[previous_path_size-1];
-				double previous_path_x1 = previous_path_x[previous_path_size-2];
-				double previous_path_y1 = previous_path_y[previous_path_size-2];
-				double previous_path_theta = atan2(fabs(previous_path_y1-previous_path_y0),fabs(previous_path_x1-previous_path_x0));
-				vector<double> next_sd = getFrenet(previous_path_x0, previous_path_y0, 
-				                          previous_path_theta, map_waypoints_x, map_waypoints_y);
-				std::cout << "last previous_path_x0=" << previous_path_x0 << endl;
-				std::cout << "last previous_path_y0=" << previous_path_y0 << endl;
-				std::cout << "last end_path_s=" << end_path_s << endl;
-				std::cout << "last end_path_d=" << end_path_d << endl;
-				std::cout << "last previous_path_x1=" << previous_path_x1 << endl;
-				std::cout << "last previous_path_y1=" << previous_path_y1 << endl;
-				for(int i = previous_path_size; i<trajectary_size; i++) {
-					double next_s = next_sd[0]+(i+1)*dist_inc;
-					double next_d = next_sd[1];
-					vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-					std::cout << "next_s"<<i<<"=" << next_s << endl;
-					std::cout << "next_d"<<i<<"=" << next_d << endl;
-					std::cout << "next_x"<<i<<"=" << xy[0] << endl;
-					std::cout << "next_y"<<i<<"=" << xy[1] << endl;
-					next_x_vals.push_back(xy[0]);
-					next_y_vals.push_back(xy[1]);
-				}
-			}
-			**/
-			
-			// walk through code
-			// first, build a spline with 2 current/current-1 (x,y) points, or the last 2 points from
-			// the end of previous trajectory-1 (x,y) + 3 (x,y) points that are 30 meters apart
-			/**
-			vector<double> ptsx, ptsy;
-			double ref_x = car_x;
-			double ref_y = car_y;
-			double ref_yaw = deg2rad(car_yaw);
-			
-			if (prv_path_size < 2){
-				std::cout << "[" << iter << "] =======================================" << endl;
-				std::cout << "prv_path_size<2 =" << prv_path_size << endl;
-					// use two points that make the path tangent to the car
-				double prv_car_x = car_x - cos(car_yaw);
-				double prv_car_y = car_y - sin(car_yaw);
-				
-				ptsx.push_back(prv_car_x);
-				ptsx.push_back(car_x);
-				ptsy.push_back(prv_car_y);
-				ptsy.push_back(car_y);
-			}
-			// use the previous path's end point as starting reference
-			else {
-				std::cout << "[" << iter << "] =======================================" << endl;
-				std::cout << "prv_path_size>2 =" << prv_path_size << endl;
-				ref_x = previous_path_x[prv_path_size-1];
-				ref_y = previous_path_y[prv_path_size-1];
-				
-				double ref_x_prv = previous_path_x[prv_path_size-2];
-				double ref_y_prv = previous_path_y[prv_path_size-2];
-				ref_yaw = atan2(ref_y-ref_y_prv, ref_x-ref_x_prv);
-				
-				// use two points that make the path tangent to the previous path's end point
-				ptsx.push_back(ref_x_prv);
-				ptsx.push_back(ref_x);
-				ptsy.push_back(ref_y_prv);
-				ptsy.push_back(ref_y);
-			}
-			std::cout << "1st - ptsx/y.size=" << ptsx.size() << endl;
-			// in Frenet add evenly 30m spaced points ahead of the starting reference so the points are not only cover the even distance points
-			vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-			vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-			vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-			
-			ptsx.push_back(next_wp0[0]);
-			ptsx.push_back(next_wp1[0]);
-			ptsx.push_back(next_wp2[0]);
-			
-			ptsy.push_back(next_wp0[1]);
-			ptsy.push_back(next_wp1[1]);
-			ptsy.push_back(next_wp2[1]);
-			
-			std::cout << "2nd - ptsx/y.size=" << ptsx.size() << endl;
-			std::cout << "before conversion" << endl;
-			for(int i=0; i<ptsx.size(); i++){
-				std::cout << "ptsx|ptsy["<<i<<"]=" << ptsx[i] << "|" << ptsy[i] << endl;
-			}
-			std::cout << "after conversion" << endl;
-			for(int i=0; i<ptsx.size(); i++){
-				//shift car reference angle to 0 degrees to align with local coordinates or in car's prespective
-				double shift_x = ptsx[i]-ref_x;
-				double shift_y = ptsy[i]-ref_y;
-				
-				ptsx[i] = (shift_x*cos(0-ref_yaw)) - (shift_y*sin(0-ref_yaw));
-				ptsy[i] = (shift_x*sin(0-ref_yaw)) + (shift_y*cos(0-ref_yaw));
-				std::cout << "ptsx|ptsy["<<i<<"]=" << ptsx[i] << "|" << ptsy[i] << endl;
-			}
-			
-			// create a spline for fitting
-			tk::spline s;
-			
-			// set (x,y) points to spline
-			s.set_points(ptsx, ptsy);
-			
-			// Since the spline fitting line starts from the last 2 points from the previous path points
-			// as a continuation and the rest of the points are newly plotted/picked to predict the new path 
-			// for the next 30 meters. With the spline fitting line ready, break the spline evenly to N points with the distance and time interval
-			// base on the the speed that we want to travel
-			
-			// start with all of previous path points from last time
-			for(int i=0; i<prv_path_size; i++) {
-				next_x_vals.push_back(previous_path_x[i]);
-				next_y_vals.push_back(previous_path_y[i]);
-				//std::cout << "prv - next_x["<<i<<"=" << next_x_vals[i] << endl;
-				//std::cout << "prv - next_y["<<i<<"=" << next_y_vals[i] << endl;
-			}
-			
-			// calculate how to break up spline fitting points so that we travel at our desired reference velocity
-			double target_x = 30.0;  // meter
-			double target_y = s(target_x);
-			double target_dist = sqrt((target_x*target_x)+(target_y*target_y));
-			double x_add_on = 0;
-			
-			// fill up the rest of out path planner after filling it with previous points, here we will always output 50 points
-			for(int i=1; i<=trajectary_size-prv_path_size; i++){
-				double N = (target_dist/(0.02*ref_v/2.24));  // base on meter/sec
-				double x_point = x_add_on+(target_x/N);
-				double y_point = s(x_point);
-				
-				//std::cout << "N|x_point|y_point=" << N << x_point << y_point << endl
-				
-				x_add_on = x_point;
-				
-				double x_ref = x_point;
-				double y_ref = y_point;
-				
-				// rotate back to normal after rotating it eariler (back to global coordinates)
-				x_point = (x_ref*cos(ref_yaw)) - (y_ref*sin(ref_yaw));
-				y_point = (x_ref*sin(ref_yaw)) + (y_ref*cos(ref_yaw));
-				
-				x_point += ref_x;
-				y_point += ref_y;
-				
-				next_x_vals.push_back(x_point);
-				next_y_vals.push_back(y_point);
-				//std::cout << "new - next_x["<<prv_path_size-1+i<<"=" << next_x_vals[prv_path_size-1+i] << endl;
-				//std::cout << "new - next_y["<<prv_path_size-1+i<<"=" << next_y_vals[prv_path_size-1+i] << endl;
-			}
-			**/
-			
-			// TODO:
 			// 1) from current state, find all possible state
 			// 2) from all possible state, find the cost of updating to possible states
 			// 3) pick the lowest cost lane to proceed
 			// 4) from the picked state, figure out the future path 
-			//**
+			
 			// initialize all cost variables before processing
 			pp.initPathPlanning(map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy);
-			cout << "[" << iter << "] initPathPlanning done" << endl;
+			if(pp.debug) cout << "[" << iter << "] initPathPlanning done" << endl;
 			
 			// process sensor data fron sensor fusion
 			pp.processSensorData(car_x, car_y, car_s, car_d, car_yaw, car_speed, previous_path_x, previous_path_y, end_path_s, end_path_d, sensor_fusion);
-			cout << "[" << iter << "] processSensorData done" << endl;
+			if(pp.debug) cout << "[" << iter << "] processSensorData done" << endl;
 			
 			// update states in FWM, determine next state and generate target_lane
 			pp.updateFSM();
-			cout << "[" << iter << "] updateFSM done" << endl;
+			if(pp.debug) cout << "[" << iter << "] updateFSM done" << endl;
 			
 			// generate a trajectory base on targeting lane determined by FSM
 			pp.generateTrajectory(previous_path_x, previous_path_y);
-			cout << "[" << iter << "] generateTrajectory done" << endl;
-			cout << "=======================================" << endl;
-			//**/
+			if(pp.debug) cout << "[" << iter << "] generateTrajectory done" << endl;
+			if(pp.debug) cout << "=======================================" << endl;
+			
 			// END
-			//msgJson["next_x"] = next_x_vals;
-          	//msgJson["next_y"] = next_y_vals;
 			msgJson["next_x"] = pp.next_x;
           	msgJson["next_y"] = pp.next_y;
 			
